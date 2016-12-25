@@ -79,6 +79,7 @@ class Permissions(object):
 
     def __init__(self, permissions=0, **kwargs):
         self.value = permissions
+        self.extra = kwargs
 
     @classmethod
     def none(cls):

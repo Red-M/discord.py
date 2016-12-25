@@ -148,6 +148,7 @@ class ConnectionState(object):
         self.messages = deque([], maxlen=kwargs.get('max_length', 5000))
         self.voice_session_id = None
         self.voice_data = None
+        self.extra = kwargs
 
     def _get_message(self, msg_id):
         return utils.find(lambda m: m.id == msg_id, self.messages)
@@ -267,7 +268,7 @@ class ConnectionState(object):
 
     def handle_guild_member_add(self, data):
         server = self._get_server(data.get('guild_id'))
-        member = Member(server=server, deaf=False, mute=False, **data)
+        member = Member(server=server, **data)
         server.members.append(member)
         self.dispatch('member_join', member)
 
@@ -446,6 +447,7 @@ class Client(object):
         self.dispatch_lock = threading.RLock()
         self.token = ''
         self.voice = None
+        self.text_message_max_length = 2000
 
         # the actual headers for the request...
         # we only override 'authorization' since the rest could use the defaults.
@@ -611,7 +613,7 @@ class Client(object):
         log.debug(request_success_log.format(response=r, json=payload, data=data))
         self.private_channels.append(PrivateChannel(id=data['id'], user=user))
 
-    def send_message(self, destination, content, mentions=True, tts=False):
+    def send_message(self, destination, content, mentions=True, tts=False, truncate=False, truncate_start=0, truncate_end=1999):
         """Sends a message to the destination given with the content given.
 
         The destination could be a :class:`Channel`, :class:`PrivateChannel` or :class:`Server`.

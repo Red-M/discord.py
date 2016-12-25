@@ -59,6 +59,7 @@ class Role(object):
 
     def __init__(self, **kwargs):
         self.update(**kwargs)
+        self.extra = kwargs
 
     def update(self, **kwargs):
         self.id = kwargs.get('id')

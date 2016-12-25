@@ -69,6 +69,7 @@ class Channel(object):
     def __init__(self, **kwargs):
         self.update(**kwargs)
         self.voice_members = []
+        self.extra = kwargs
 
     def update(self, **kwargs):
         self.name = kwargs.get('name')

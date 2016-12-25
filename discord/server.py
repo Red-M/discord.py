@@ -87,6 +87,7 @@ class Server(object):
         return member
 
     def _from_data(self, guild):
+        self.extra = guild
         self.name = guild.get('name')
         self.region = guild.get('region')
         self.afk_timeout = guild.get('afk_timeout')

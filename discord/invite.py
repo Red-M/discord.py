@@ -81,6 +81,7 @@ class Invite(object):
         self.uses = kwargs.get('uses')
         self.max_uses = kwargs.get('max_uses')
         self.xkcd = kwargs.get('xkcdpass')
+        self.extra = kwargs
 
         inviter_data = kwargs.get('inviter')
         self.inviter = None if inviter_data is None else User(**inviter_data)

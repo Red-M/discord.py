@@ -116,6 +116,7 @@ class Message(object):
         self.attachments = kwargs.get('attachments')
         self._handle_upgrades_and_server(kwargs.get('channel_id'))
         self._handle_mentions(kwargs.get('mentions', []))
+        self.extra = kwargs
 
     def _handle_mentions(self, mentions):
         self.mentions = []
