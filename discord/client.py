@@ -66,14 +66,25 @@ class KeepAliveHandler(threading.Thread):
 
     def run(self):
         while not self.stop.wait(self.seconds):
-            payload = {
-                'op': 1,
-                'd': int(time.time())
-            }
+            self.send()
+            # payload = {
+                # 'op': 1,
+                # 'd': int(time.time())
+            # }
 
-            msg = 'Keeping websocket alive with timestamp {0}'
-            log.debug(msg.format(payload['d']))
-            self.socket.send(json.dumps(payload, separators=(',', ':')))
+            # msg = 'Keeping websocket alive with timestamp {0}'
+            # log.debug(msg.format(payload['d']))
+            # self.socket.send(json.dumps(payload, separators=(',', ':')))
+    
+    def send(self):
+        payload = {
+            'op': 1,
+            'd': self.socket.sequence
+        }
+
+        msg = 'Keeping websocket alive with timestamp {0}'
+        log.debug(msg.format(payload['d']))
+        self.socket.send(json.dumps(payload, separators=(',', ':')))
 
 class WebSocket(WebSocketBaseClient):
     def __init__(self, dispatch, url):
@@ -81,6 +92,8 @@ class WebSocket(WebSocketBaseClient):
                                      protocols=['http-only', 'chat'])
         self.dispatch = dispatch
         self.keep_alive = None
+        self.sequence = None
+        self.is_ready = False
 
     def opened(self):
         log.info('Opened at {}'.format(int(time.time())))
@@ -118,11 +131,22 @@ class WebSocket(WebSocketBaseClient):
             return # What about op 7?
 
         event = response.get('t')
+            
+        if op == 1:
+            self.keep_alive.send()
+            return
+        if op == 10:
+            interval = float(data['heartbeat_interval']) / float(1000.0)
+            self.keep_alive = KeepAliveHandler(float(interval), self)
+            self.keep_alive.start()
 
         if event == 'READY':
-            interval = data['heartbeat_interval'] / 1000.0
-            self.keep_alive = KeepAliveHandler(interval, self)
-            self.keep_alive.start()
+            self.sequence = response['s']
+            if self.is_ready == True:
+                return
+            else:
+                self.is_ready = True
+            
 
 
         if event in ('READY', 'MESSAGE_CREATE', 'MESSAGE_DELETE',
@@ -438,6 +462,20 @@ class Client(object):
 
     .. _deque: https://docs.python.org/3.4/library/collections.html#collections.deque
     """
+    
+    DISPATCH           = 0
+    HEARTBEAT          = 1
+    IDENTIFY           = 2
+    PRESENCE           = 3
+    VOICE_STATE        = 4
+    VOICE_PING         = 5
+    RESUME             = 6
+    RECONNECT          = 7
+    REQUEST_MEMBERS    = 8
+    INVALIDATE_SESSION = 9
+    HELLO              = 10
+    HEARTBEAT_ACK      = 11
+    GUILD_SYNC         = 12
 
     def __init__(self, **kwargs):
         self._is_logged_in = False
@@ -612,6 +650,32 @@ class Client(object):
         data = r.json()
         log.debug(request_success_log.format(response=r, json=payload, data=data))
         self.private_channels.append(PrivateChannel(id=data['id'], user=user))
+
+    def change_presence(self, game=None, status=None, afk=False, since=0.0, idle=None):
+        if game is not None and not isinstance(game, Game):
+            raise InvalidArgument('game must be of type Game or None')
+
+        if idle:
+            status = 'idle'
+
+        if status == 'idle':
+            since = int(time.time() * 1000)
+
+        sent_game = dict(game) if game else None
+
+        payload = {
+            'op': self.PRESENCE,
+            'd': {
+                'game': sent_game,
+                'afk': afk,
+                'since': since,
+                'status': status
+            }
+        }
+
+        sent = utils.to_json(payload)
+        # log.debug('Sending "{}" to change status'.format(sent))
+        self.ws.send(sent)
 
     def send_message(self, destination, content, mentions=True, tts=False, truncate=False, truncate_start=0, truncate_end=1999):
         """Sends a message to the destination given with the content given.
