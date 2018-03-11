@@ -66,7 +66,7 @@ class KeepAliveHandler(threading.Thread):
 
     def run(self):
         while not self.stop.wait(self.seconds):
-            self.send()
+            self.send_heartbeat()
             # payload = {
                 # 'op': 1,
                 # 'd': int(time.time())
@@ -76,15 +76,16 @@ class KeepAliveHandler(threading.Thread):
             # log.debug(msg.format(payload['d']))
             # self.socket.send(json.dumps(payload, separators=(',', ':')))
     
-    def send(self):
+    def send_heartbeat(self):
         payload = {
             'op': 1,
             'd': self.socket.sequence
         }
 
-        msg = 'Keeping websocket alive with timestamp {0}'
-        log.debug(msg.format(payload['d']))
-        self.socket.send(json.dumps(payload, separators=(',', ':')))
+        msg = 'Keeping websocket alive'
+        log.debug(msg)
+        log.debug(json.dumps(payload))
+        self.socket.send(json.dumps(payload))
 
 class WebSocket(WebSocketBaseClient):
     def __init__(self, dispatch, url):
@@ -125,15 +126,16 @@ class WebSocket(WebSocketBaseClient):
 
         op = response.get('op')
         data = response.get('d')
+        event = response.get('t')
 
-        if op != 0:
+        if not op in [0,1,10]:
             log.info("Unhandled op {}".format(op))
+            log.info("Unhandled t {}".format(event))
             return # What about op 7?
 
-        event = response.get('t')
             
         if op == 1:
-            self.keep_alive.send()
+            self.keep_alive.send_heartbeat()
             return
         if op == 10:
             interval = float(data['heartbeat_interval']) / float(1000.0)
@@ -149,7 +151,7 @@ class WebSocket(WebSocketBaseClient):
             
 
 
-        if event in ('READY', 'MESSAGE_CREATE', 'MESSAGE_DELETE',
+        if event in ('READY', 'HELLO', 'MESSAGE_CREATE', 'MESSAGE_DELETE',
                      'MESSAGE_UPDATE', 'PRESENCE_UPDATE', 'USER_UPDATE',
                      'CHANNEL_DELETE', 'CHANNEL_UPDATE', 'CHANNEL_CREATE',
                      'GUILD_MEMBER_ADD', 'GUILD_MEMBER_REMOVE',

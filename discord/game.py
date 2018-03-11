@@ -50,6 +50,8 @@ class Game:
         self.name = kwargs.get('name')
         self.url = kwargs.get('url')
         self.type = kwargs.get('type')
+        if self.type==None:
+            self.type = 0
 
     def __str__(self):
         return self.name
